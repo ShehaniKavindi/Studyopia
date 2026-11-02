@@ -6,7 +6,12 @@ export default function RootLayout() {
   if (!loaded) return null;
 
   return (
-    <Stack screenOptions={{ headerShown: false }}>
+    <Stack screenOptions={{ 
+      headerShown: false,
+      tabBarActiveBackgroundColor: colors.muted,
+      tabBarItemStyle: { 
+        borderRadius: 22, marginHorizontal: 2, marginVertical: 8 
+      }, }}>
       <Stack.Screen name="add-task" options={{ presentation: 'modal' }} />
       <Stack.Screen name="session-complete" options={{ presentation: 'transparentModal' }} />
     </Stack>

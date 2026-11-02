@@ -144,6 +144,7 @@ export default function Focus() {
         {/* ring */}
         <View style={{ width: SIZE, height: SIZE, marginVertical: 28 }}>
             <Svg width={SIZE} height={SIZE}>
+                <Circle cx={SIZE / 2} cy={SIZE / 2} r={R - STROKE} fill={colors.highlight} opacity={0.45} />
             <Circle cx={SIZE / 2} cy={SIZE / 2} r={R} stroke={colors.muted} strokeWidth={STROKE} fill="none" />
             <Circle
                 cx={SIZE / 2} cy={SIZE / 2} r={R}

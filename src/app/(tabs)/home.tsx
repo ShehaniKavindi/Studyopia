@@ -35,13 +35,16 @@ export default function Home() {
   const done = today.filter((t) => t.done).length;
   const pct = today.length ? done / today.length : 0;
 
+  const h = new Date().getHours();
+const greeting = h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening';
   return (
     <Screen>
     <ScrollView style={s.screen} contentContainerStyle={{ padding: 20, paddingBottom: 120 }}>
       {/* header */}
       <View style={s.header}>
         <View>
-          <Text style={s.hi}>Hi, {name || 'there'}</Text>
+            
+          <Text style={s.hi}>{greeting}, {name || 'there'}</Text>
           <Text style={s.sub}>Ready to focus today?</Text>
         </View>
         <Pressable onPress={() => router.push('/settings')}>

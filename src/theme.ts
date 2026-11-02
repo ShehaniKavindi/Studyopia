@@ -18,3 +18,13 @@ export const fonts = {
   bold: 'Nunito_700Bold',
   heavy: 'Nunito_800ExtraBold',
 };
+
+export const shadow = {
+  soft: {
+    shadowColor: '#9C84B8',
+    shadowOpacity: 0.18,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 3,
+  },
+};
