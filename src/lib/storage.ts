@@ -35,6 +35,10 @@ export const storage = {
         ...(await read<Partial<Settings>>('settings', {})),
     }),
     setSettings: (s: Settings) => write('settings', s),
+
+      getAvatar: () => AsyncStorage.getItem('avatar'),
+  setAvatar: (uri: string) => AsyncStorage.setItem('avatar', uri),
+  removeAvatar: () => AsyncStorage.removeItem('avatar'),
     
   // name
   getName: () => AsyncStorage.getItem('userName'),
@@ -96,6 +100,7 @@ export const storage = {
         app: 'studyopia',
         version: 1,
         userName: await storage.getName(),
+        avatar: await storage.getAvatar(),
         subjects: await storage.getSubjects(),
         tasks: await storage.getTasks(),
         sessions: await storage.getSessions(),
@@ -113,6 +118,7 @@ export const storage = {
     }
     await AsyncStorage.multiSet([
       ['userName', d.userName ?? ''],
+      ['avatar', d.avatar ?? ''],
       ['subjects', JSON.stringify(d.subjects)],
       ['tasks', JSON.stringify(d.tasks)],
       ['sessions', JSON.stringify(d.sessions)],

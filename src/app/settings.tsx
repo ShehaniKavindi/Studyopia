@@ -4,6 +4,9 @@ import { router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, fonts, radius } from '../theme';
 import { storage, Subject, Settings, DEFAULT_SETTINGS } from '../lib/storage';
+import ColorPicker from '../components/ColorPicker';
+import Avatar from '../components/Avatar';
+import { pickAvatar } from '../lib/avatar';
 
 const SWATCHES = ['#C3B3D4', '#DACADD', '#FAEECD', '#CFE3DA', '#F4D6E0', '#CFE0F5'];
 
@@ -15,6 +18,7 @@ const TIMERS: { key: keyof Settings; label: string; min: number; max: number }[]
 
 export default function SettingsScreen() {
   const [name, setName] = useState('');
+  const [avatar, setAvatar] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
   const [timers, setTimers] = useState<Settings>(DEFAULT_SETTINGS);
   const [subjects, setSubjects] = useState<Subject[]>([]);
@@ -22,16 +26,31 @@ export default function SettingsScreen() {
   const [newColor, setNewColor] = useState(SWATCHES[0]);
   const [importText, setImportText] = useState('');
   const [showImport, setShowImport] = useState(false);
+  const [showPicker, setShowPicker] = useState(false);
+  const isCustom = !SWATCHES.includes(newColor);
 
   useFocusEffect(
     useCallback(() => {
       (async () => {
         setName((await storage.getName()) ?? '');
+        setAvatar(await storage.getAvatar());
         setTimers(await storage.getSettings());
         setSubjects(await storage.seedSubjects());
       })();
     }, [])
   );
+
+  const changePhoto = async () => {
+    const uri = await pickAvatar();
+    if (!uri) return;
+    await storage.setAvatar(uri);
+    setAvatar(uri);
+    };
+
+    const removePhoto = async () => {
+    await storage.removeAvatar();
+    setAvatar(null);
+    };
 
   const saveName = async () => {
     if (!name.trim()) return;
@@ -84,6 +103,7 @@ export default function SettingsScreen() {
             setName((await storage.getName()) ?? '');
             setTimers(await storage.getSettings());
             setSubjects(await storage.getSubjects());
+            setAvatar(await storage.getAvatar());
             Alert.alert('Done', 'Backup imported.');
           } catch {
             Alert.alert('Could not import', 'That text is not a valid Studyopia backup.');
@@ -105,6 +125,26 @@ export default function SettingsScreen() {
       {/* name */}
       <Text style={s.section}>Profile</Text>
       <View style={s.card}>
+
+        <View style={s.avatarRow}>
+        <Pressable onPress={changePhoto}>
+            <Avatar uri={avatar} name={name} size={84} />
+            <View style={s.camera}>
+            <Ionicons name="camera-outline" size={16} color={colors.text} />
+            </View>
+        </Pressable>
+        <View style={{ flex: 1, gap: 8 }}>
+            <Pressable onPress={changePhoto} style={[s.btn, { marginTop: 0 }]}>
+            <Text style={s.btnText}>{avatar ? 'Change photo' : 'Choose photo'}</Text>
+            </Pressable>
+            {avatar && (
+            <Pressable onPress={removePhoto} hitSlop={8} style={{ alignItems: 'center' }}>
+                <Text style={s.removeText}>Remove photo</Text>
+            </Pressable>
+            )}
+        </View>
+        </View>
+
         <Text style={s.label}>Your name</Text>
         <TextInput value={name} onChangeText={setName} placeholder="Name"
           placeholderTextColor={colors.textMuted} style={s.input} />
@@ -149,12 +189,27 @@ export default function SettingsScreen() {
           <Text style={s.label}>Add subject</Text>
           <TextInput value={newName} onChangeText={setNewName} placeholder="e.g. Chemistry"
             placeholderTextColor={colors.textMuted} style={s.input} />
-          <View style={s.swatches}>
+            <View style={s.swatches}>
             {SWATCHES.map((c) => (
-              <Pressable key={c} onPress={() => setNewColor(c)}
-                style={[s.swatch, { backgroundColor: c }, newColor === c && s.swatchOn]} />
+                <Pressable
+                key={c}
+                onPress={() => { setNewColor(c); setShowPicker(false); }}
+                style={[s.swatch, { backgroundColor: c }, newColor === c && s.swatchOn]}
+                />
             ))}
-          </View>
+            {/* + custom color */}
+            <Pressable
+                onPress={() => setShowPicker(!showPicker)}
+                style={[
+                s.swatch,
+                s.plus,
+                isCustom && { backgroundColor: newColor, borderStyle: 'solid', borderColor: colors.text },
+                ]}
+            >
+    <Ionicons name={showPicker ? 'chevron-up' : 'add'} size={18} color={colors.text} />
+  </Pressable>
+</View>
+{showPicker && <ColorPicker value={newColor} onChange={setNewColor} />}
           <Pressable onPress={addSubject} style={s.btn}>
             <Text style={s.btnText}>Add subject</Text>
           </Pressable>
@@ -219,4 +274,15 @@ const s = StyleSheet.create({
   swatches: { flexDirection: 'row', gap: 10, marginTop: 12 },
   swatch: { width: 30, height: 30, borderRadius: 15, borderWidth: 2, borderColor: 'transparent' },
   swatchOn: { borderColor: colors.text },
+  plus: {
+    alignItems: 'center', justifyContent: 'center',
+    backgroundColor: colors.surface, borderWidth: 2, borderStyle: 'dashed', borderColor: colors.textMuted,
+    },
+    avatarRow: { flexDirection: 'row', alignItems: 'center', gap: 16, marginBottom: 18 },
+camera: {
+  position: 'absolute', right: -2, bottom: -2, width: 28, height: 28, borderRadius: 14,
+  backgroundColor: colors.primary, borderWidth: 2, borderColor: colors.surface,
+  alignItems: 'center', justifyContent: 'center',
+},
+removeText: { fontFamily: fonts.bold, fontSize: 13, color: colors.textMuted },
 });

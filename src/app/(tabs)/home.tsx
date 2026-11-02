@@ -4,6 +4,7 @@ import { router, useFocusEffect } from 'expo-router';
 import { colors, fonts, radius } from '../../theme';
 import { storage, Task, Subject, Session } from '../../lib/storage';
 import { toKey } from '../../lib/dates';
+import Avatar from '../../components/Avatar';
 import { minutesOn, streak, formatMinutes } from '../../lib/stats';
 
 export default function Home() {
@@ -11,11 +12,13 @@ export default function Home() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [sessions, setSessions] = useState<Session[]>([]);
+  const [avatar, setAvatar] = useState<string | null>(null);
 
   useFocusEffect(
     useCallback(() => {
       (async () => {
         setName((await storage.getName()) ?? '');
+        setAvatar(await storage.getAvatar());
         setSubjects(await storage.seedSubjects());
         setTasks(await storage.getTasks());
         setSessions(await storage.getSessions());
@@ -38,8 +41,8 @@ export default function Home() {
           <Text style={s.hi}>Hi, {name || 'there'}</Text>
           <Text style={s.sub}>Ready to focus today?</Text>
         </View>
-        <Pressable onPress={() => router.push('/settings')} style={s.avatar}>
-          <Text style={s.avatarText}>{(name[0] ?? 'S').toUpperCase()}</Text>
+        <Pressable onPress={() => router.push('/settings')}>
+        <Avatar uri={avatar} name={name} size={44} />
         </Pressable>
       </View>
 
