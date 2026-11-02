@@ -77,6 +77,3 @@ Data is stored only on your device. Use **Settings → Export data** to share a 
 - [ ] File-based backup (export to / import from a `.json` file)
 - [ ] Standalone Android build with EAS
 
-## License
-
-Choose a license, e.g. MIT, and add a `LICENSE` file.
