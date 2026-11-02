@@ -4,10 +4,13 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { colors, fonts, radius } from '../theme';
 import { storage, Subject } from '../lib/storage';
 import { toKey, addDays, fromKey, DAY_NAMES } from '../lib/dates';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function AddTask() {
   const { id, date } = useLocalSearchParams<{ id?: string; date?: string }>();
   const editing = !!id;
+
+  const insets = useSafeAreaInsets();
 
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [title, setTitle] = useState('');
@@ -53,7 +56,7 @@ export default function AddTask() {
   };
 
   return (
-    <ScrollView style={s.screen} contentContainerStyle={{ padding: 20, paddingBottom: 40 }}
+    <ScrollView style={s.screen} contentContainerStyle={{ padding: 20, paddingTop: insets.top + 16, paddingBottom: insets.bottom + 40 }}
       keyboardShouldPersistTaps="handled">
       <View style={s.top}>
         <Text style={s.heading}>{editing ? 'Edit task' : 'New task'}</Text>

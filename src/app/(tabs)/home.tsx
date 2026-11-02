@@ -6,6 +6,7 @@ import { storage, Task, Subject, Session } from '../../lib/storage';
 import { toKey } from '../../lib/dates';
 import Avatar from '../../components/Avatar';
 import { minutesOn, streak, formatMinutes } from '../../lib/stats';
+import SubjectIcon from '../../components/SubjectIcon';
 
 export default function Home() {
   const [name, setName] = useState('');
@@ -98,9 +99,7 @@ export default function Home() {
             style={s.card}
             onPress={() => router.push({ pathname: '/add-task', params: { id: t.id } })}
           >
-            <View style={[s.badge, { backgroundColor: subj?.color ?? colors.muted }]}>
-              <Text style={s.badgeText}>{(subj?.name ?? t.title)[0].toUpperCase()}</Text>
-            </View>
+            <SubjectIcon subject={subj} size={42} />
             <View style={{ flex: 1 }}>
               <Text style={[s.taskTitle, t.done && s.doneText]}>{t.title}</Text>
               <Text style={s.meta}>{subj?.name ?? 'No subject'}</Text>

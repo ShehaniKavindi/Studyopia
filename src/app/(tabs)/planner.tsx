@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors, fonts, radius } from '../../theme';
 import { storage, Task, Subject } from '../../lib/storage';
 import { toKey, addDays, startOfWeek, DAY_NAMES } from '../../lib/dates';
+import SubjectIcon from '../../components/SubjectIcon';
 
 export default function Planner() {
   const [selected, setSelected] = useState(new Date());
@@ -96,7 +97,7 @@ export default function Planner() {
                   {[subj?.name, t.time].filter(Boolean).join(' · ') || 'No subject'}
                 </Text>
               </View>
-              <View style={[s.dot, { backgroundColor: subj?.color ?? colors.muted }]} />
+              <SubjectIcon subject={subj} size={34} />
             </Pressable>
           );
         })}

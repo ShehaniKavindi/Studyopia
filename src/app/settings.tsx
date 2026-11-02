@@ -7,6 +7,9 @@ import { storage, Subject, Settings, DEFAULT_SETTINGS } from '../lib/storage';
 import ColorPicker from '../components/ColorPicker';
 import Avatar from '../components/Avatar';
 import { pickAvatar } from '../lib/avatar';
+import Screen from '../components/Screen';
+import SubjectIcon from '../components/SubjectIcon';
+import { ICONS, suggestIcon, IconName } from '../lib/subjectIcons';
 
 const SWATCHES = ['#C3B3D4', '#DACADD', '#FAEECD', '#CFE3DA', '#F4D6E0', '#CFE0F5'];
 
@@ -28,6 +31,8 @@ export default function SettingsScreen() {
   const [showImport, setShowImport] = useState(false);
   const [showPicker, setShowPicker] = useState(false);
   const isCustom = !SWATCHES.includes(newColor);
+  const [icon, setIcon] = useState<IconName>('book-outline');
+const [iconTouched, setIconTouched] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -66,11 +71,13 @@ export default function SettingsScreen() {
   };
 
   const addSubject = async () => {
-    if (!newName.trim()) return;
-    await storage.addSubject({ name: newName.trim(), color: newColor });
-    setNewName('');
-    setSubjects(await storage.getSubjects());
-  };
+  if (!newName.trim()) return;
+  await storage.addSubject({ name: newName.trim(), color: newColor, icon });
+  setNewName('');
+  setIcon('book-outline');
+  setIconTouched(false);
+  setSubjects(await storage.getSubjects());
+};
 
   const removeSubject = (sub: Subject) =>
     Alert.alert('Delete subject?', `${sub.name} will be removed. Old tasks and sessions stay, but show "No subject".`, [
@@ -113,14 +120,20 @@ export default function SettingsScreen() {
     ]);
 
   return (
-    <ScrollView style={s.screen} contentContainerStyle={{ padding: 20, paddingBottom: 60 }}
-      keyboardShouldPersistTaps="handled">
-      <View style={s.top}>
-        <Pressable onPress={() => router.back()} hitSlop={10} style={s.back}>
-          <Ionicons name="chevron-back" size={22} color={colors.text} />
-        </Pressable>
-        <Text style={s.title}>Settings</Text>
-      </View>
+    <Screen>
+    {/* fixed header */}
+    <View style={s.top}>
+      <Pressable onPress={() => router.back()} hitSlop={10} style={s.back}>
+        <Ionicons name="chevron-back" size={22} color={colors.text} />
+      </Pressable>
+      <Text style={s.title}>Settings</Text>
+    </View>
+
+    <ScrollView
+      style={{ flex: 1 }}
+      contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 60 }}
+      keyboardShouldPersistTaps="handled"
+    >
 
       {/* name */}
       <Text style={s.section}>Profile</Text>
@@ -177,7 +190,7 @@ export default function SettingsScreen() {
       <View style={s.card}>
         {subjects.map((sub, i) => (
           <View key={sub.id} style={[s.subjectRow, i > 0 && s.divider]}>
-            <View style={[s.dot, { backgroundColor: sub.color }]} />
+            <SubjectIcon subject={sub} size={34} />
             <Text style={s.subjectName}>{sub.name}</Text>
             <Pressable onPress={() => removeSubject(sub)} hitSlop={10}>
               <Ionicons name="trash-outline" size={19} color={colors.textMuted} />
@@ -187,8 +200,17 @@ export default function SettingsScreen() {
 
         <View style={[s.divider, { marginTop: 6, paddingTop: 14 }]}>
           <Text style={s.label}>Add subject</Text>
-          <TextInput value={newName} onChangeText={setNewName} placeholder="e.g. Chemistry"
-            placeholderTextColor={colors.textMuted} style={s.input} />
+          <TextInput
+            value={newName}
+            onChangeText={(v) => {
+                setNewName(v);
+                if (!iconTouched) setIcon(suggestIcon(v));
+            }}
+            placeholder="e.g. Chemistry"
+            placeholderTextColor={colors.textMuted}
+            style={s.input}
+            />
+            
             <View style={s.swatches}>
             {SWATCHES.map((c) => (
                 <Pressable
@@ -210,6 +232,23 @@ export default function SettingsScreen() {
   </Pressable>
 </View>
 {showPicker && <ColorPicker value={newColor} onChange={setNewColor} />}
+          <Text style={[s.label, { marginTop: 14 }]}>
+            Icon{!iconTouched && newName.trim() ? ' (suggested)' : ''}
+            </Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
+            {ICONS.map((ic) => {
+                const on = ic === icon;
+                return (
+                <Pressable
+                    key={ic}
+                    onPress={() => { setIcon(ic); setIconTouched(true); }}
+                    style={[s.iconBtn, on && { backgroundColor: newColor, borderColor: colors.text }]}
+                >
+                    <Ionicons name={ic} size={20} color={colors.text} />
+                </Pressable>
+                );
+            })}
+            </ScrollView>
           <Pressable onPress={addSubject} style={s.btn}>
             <Text style={s.btnText}>Add subject</Text>
           </Pressable>
@@ -243,12 +282,13 @@ export default function SettingsScreen() {
         )}
       </View>
     </ScrollView>
+  </Screen>
   );
 }
 
 const s = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
-  top: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 28 },
+  top: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 20, paddingTop: 12, paddingBottom: 12 },
   back: { width: 36, height: 36, borderRadius: 18, backgroundColor: colors.muted, alignItems: 'center', justifyContent: 'center' },
   title: { fontFamily: fonts.heavy, fontSize: 26, color: colors.text },
   section: { fontFamily: fonts.heavy, fontSize: 16, color: colors.text, marginTop: 24, marginBottom: 10 },
@@ -285,4 +325,8 @@ camera: {
   alignItems: 'center', justifyContent: 'center',
 },
 removeText: { fontFamily: fonts.bold, fontSize: 13, color: colors.textMuted },
+iconBtn: {
+  width: 42, height: 42, borderRadius: 14, borderWidth: 2, borderColor: 'transparent',
+  backgroundColor: colors.muted, alignItems: 'center', justifyContent: 'center',
+},
 });

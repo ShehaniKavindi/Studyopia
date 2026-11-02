@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-export type Subject = { id: string; name: string; color: string };
+export type Subject = { id: string; name: string; color: string; icon?: string };
+
 export type Task = {
   id: string; title: string; subjectId?: string;
   date: string;          // 'YYYY-MM-DD'
@@ -11,6 +12,8 @@ export type Session = {
   id: string; subjectId?: string; taskId?: string;
   minutes: number; startedAt: string; // ISO
 };
+
+
 
 async function read<T>(key: string, fallback: T): Promise<T> {
   try {
