@@ -1,0 +1,222 @@
+import { useCallback, useState } from 'react';
+import { View, Text, TextInput, Pressable, ScrollView, StyleSheet, Share, Alert } from 'react-native';
+import { router, useFocusEffect } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
+import { colors, fonts, radius } from '../theme';
+import { storage, Subject, Settings, DEFAULT_SETTINGS } from '../lib/storage';
+
+const SWATCHES = ['#C3B3D4', '#DACADD', '#FAEECD', '#CFE3DA', '#F4D6E0', '#CFE0F5'];
+
+const TIMERS: { key: keyof Settings; label: string; min: number; max: number }[] = [
+  { key: 'focus', label: 'Focus', min: 1, max: 120 },
+  { key: 'short', label: 'Short break', min: 1, max: 30 },
+  { key: 'long', label: 'Long break', min: 5, max: 60 },
+];
+
+export default function SettingsScreen() {
+  const [name, setName] = useState('');
+  const [saved, setSaved] = useState(false);
+  const [timers, setTimers] = useState<Settings>(DEFAULT_SETTINGS);
+  const [subjects, setSubjects] = useState<Subject[]>([]);
+  const [newName, setNewName] = useState('');
+  const [newColor, setNewColor] = useState(SWATCHES[0]);
+  const [importText, setImportText] = useState('');
+  const [showImport, setShowImport] = useState(false);
+
+  useFocusEffect(
+    useCallback(() => {
+      (async () => {
+        setName((await storage.getName()) ?? '');
+        setTimers(await storage.getSettings());
+        setSubjects(await storage.seedSubjects());
+      })();
+    }, [])
+  );
+
+  const saveName = async () => {
+    if (!name.trim()) return;
+    await storage.setName(name.trim());
+    setSaved(true);
+    setTimeout(() => setSaved(false), 1500);
+  };
+
+  const bump = async (key: keyof Settings, delta: number, min: number, max: number) => {
+    const next = { ...timers, [key]: Math.min(max, Math.max(min, timers[key] + delta)) };
+    setTimers(next);
+    await storage.setSettings(next);
+  };
+
+  const addSubject = async () => {
+    if (!newName.trim()) return;
+    await storage.addSubject({ name: newName.trim(), color: newColor });
+    setNewName('');
+    setSubjects(await storage.getSubjects());
+  };
+
+  const removeSubject = (sub: Subject) =>
+    Alert.alert('Delete subject?', `${sub.name} will be removed. Old tasks and sessions stay, but show "No subject".`, [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: async () => {
+          await storage.deleteSubject(sub.id);
+          setSubjects(await storage.getSubjects());
+        },
+      },
+    ]);
+
+  const exportData = async () => {
+    await Share.share({ message: await storage.exportAll() });
+  };
+
+  const runImport = () =>
+    Alert.alert('Replace all data?', 'This overwrites everything in the app with the backup.', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Import',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await storage.importAll(importText.trim());
+            setImportText('');
+            setShowImport(false);
+            setName((await storage.getName()) ?? '');
+            setTimers(await storage.getSettings());
+            setSubjects(await storage.getSubjects());
+            Alert.alert('Done', 'Backup imported.');
+          } catch {
+            Alert.alert('Could not import', 'That text is not a valid Studyopia backup.');
+          }
+        },
+      },
+    ]);
+
+  return (
+    <ScrollView style={s.screen} contentContainerStyle={{ padding: 20, paddingBottom: 60 }}
+      keyboardShouldPersistTaps="handled">
+      <View style={s.top}>
+        <Pressable onPress={() => router.back()} hitSlop={10} style={s.back}>
+          <Ionicons name="chevron-back" size={22} color={colors.text} />
+        </Pressable>
+        <Text style={s.title}>Settings</Text>
+      </View>
+
+      {/* name */}
+      <Text style={s.section}>Profile</Text>
+      <View style={s.card}>
+        <Text style={s.label}>Your name</Text>
+        <TextInput value={name} onChangeText={setName} placeholder="Name"
+          placeholderTextColor={colors.textMuted} style={s.input} />
+        <Pressable onPress={saveName} style={s.btn}>
+          <Text style={s.btnText}>{saved ? 'Saved' : 'Save name'}</Text>
+        </Pressable>
+      </View>
+
+      {/* timers */}
+      <Text style={s.section}>Timer (minutes)</Text>
+      <View style={s.card}>
+        {TIMERS.map((t, i) => (
+          <View key={t.key} style={[s.timerRow, i > 0 && s.divider]}>
+            <Text style={s.timerLabel}>{t.label}</Text>
+            <View style={s.stepper}>
+              <Pressable onPress={() => bump(t.key, -1, t.min, t.max)} style={s.step} hitSlop={6}>
+                <Ionicons name="remove" size={18} color={colors.text} />
+              </Pressable>
+              <Text style={s.stepValue}>{timers[t.key]}</Text>
+              <Pressable onPress={() => bump(t.key, 1, t.min, t.max)} style={s.step} hitSlop={6}>
+                <Ionicons name="add" size={18} color={colors.text} />
+              </Pressable>
+            </View>
+          </View>
+        ))}
+      </View>
+
+      {/* subjects */}
+      <Text style={s.section}>Subjects</Text>
+      <View style={s.card}>
+        {subjects.map((sub, i) => (
+          <View key={sub.id} style={[s.subjectRow, i > 0 && s.divider]}>
+            <View style={[s.dot, { backgroundColor: sub.color }]} />
+            <Text style={s.subjectName}>{sub.name}</Text>
+            <Pressable onPress={() => removeSubject(sub)} hitSlop={10}>
+              <Ionicons name="trash-outline" size={19} color={colors.textMuted} />
+            </Pressable>
+          </View>
+        ))}
+
+        <View style={[s.divider, { marginTop: 6, paddingTop: 14 }]}>
+          <Text style={s.label}>Add subject</Text>
+          <TextInput value={newName} onChangeText={setNewName} placeholder="e.g. Chemistry"
+            placeholderTextColor={colors.textMuted} style={s.input} />
+          <View style={s.swatches}>
+            {SWATCHES.map((c) => (
+              <Pressable key={c} onPress={() => setNewColor(c)}
+                style={[s.swatch, { backgroundColor: c }, newColor === c && s.swatchOn]} />
+            ))}
+          </View>
+          <Pressable onPress={addSubject} style={s.btn}>
+            <Text style={s.btnText}>Add subject</Text>
+          </Pressable>
+        </View>
+      </View>
+
+      {/* backup */}
+      <Text style={s.section}>Backup</Text>
+      <View style={s.card}>
+        <Text style={s.note}>
+          Your data lives only on this phone. Export a copy now and then (send it to yourself).
+        </Text>
+        <Pressable onPress={exportData} style={s.btn}>
+          <Text style={s.btnText}>Export data</Text>
+        </Pressable>
+        <Pressable onPress={() => setShowImport(!showImport)} style={[s.btn, s.btnLight]}>
+          <Text style={s.btnText}>Import data</Text>
+        </Pressable>
+
+        {showImport && (
+          <View style={{ marginTop: 12 }}>
+            <Text style={s.label}>Paste your backup text</Text>
+            <TextInput value={importText} onChangeText={setImportText} multiline
+              placeholder='{"app":"studyopia", ...}' placeholderTextColor={colors.textMuted}
+              style={[s.input, { height: 120, textAlignVertical: 'top' }]} />
+            <Pressable onPress={runImport} style={[s.btn, !importText.trim() && { opacity: 0.5 }]}
+              disabled={!importText.trim()}>
+              <Text style={s.btnText}>Replace my data</Text>
+            </Pressable>
+          </View>
+        )}
+      </View>
+    </ScrollView>
+  );
+}
+
+const s = StyleSheet.create({
+  screen: { flex: 1, backgroundColor: colors.bg },
+  top: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 28 },
+  back: { width: 36, height: 36, borderRadius: 18, backgroundColor: colors.muted, alignItems: 'center', justifyContent: 'center' },
+  title: { fontFamily: fonts.heavy, fontSize: 26, color: colors.text },
+  section: { fontFamily: fonts.heavy, fontSize: 16, color: colors.text, marginTop: 24, marginBottom: 10 },
+  card: { backgroundColor: colors.surface, borderRadius: radius.lg, borderWidth: 1.5, borderColor: colors.muted, padding: 16 },
+  label: { fontFamily: fonts.heavy, fontSize: 12, color: colors.textMuted, marginBottom: 8 },
+  note: { fontFamily: fonts.regular, fontSize: 13, color: colors.textMuted, marginBottom: 12, lineHeight: 19 },
+  input: {
+    backgroundColor: colors.bg, borderWidth: 1.5, borderColor: colors.muted, borderRadius: radius.md,
+    padding: 12, fontFamily: fonts.bold, fontSize: 15, color: colors.text,
+  },
+  btn: { backgroundColor: colors.primary, borderRadius: radius.pill, paddingVertical: 13, alignItems: 'center', marginTop: 12 },
+  btnLight: { backgroundColor: colors.secondary },
+  btnText: { fontFamily: fonts.heavy, fontSize: 14, color: colors.text },
+  divider: { borderTopWidth: 1, borderTopColor: colors.muted },
+  timerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 12 },
+  timerLabel: { fontFamily: fonts.heavy, fontSize: 15, color: colors.text },
+  stepper: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  step: { width: 32, height: 32, borderRadius: 16, backgroundColor: colors.muted, alignItems: 'center', justifyContent: 'center' },
+  stepValue: { fontFamily: fonts.heavy, fontSize: 17, color: colors.text, minWidth: 30, textAlign: 'center' },
+  subjectRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12 },
+  dot: { width: 18, height: 18, borderRadius: 9 },
+  subjectName: { flex: 1, fontFamily: fonts.heavy, fontSize: 15, color: colors.text },
+  swatches: { flexDirection: 'row', gap: 10, marginTop: 12 },
+  swatch: { width: 30, height: 30, borderRadius: 15, borderWidth: 2, borderColor: 'transparent' },
+  swatchOn: { borderColor: colors.text },
+});
