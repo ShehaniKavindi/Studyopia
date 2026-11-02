@@ -1,56 +1,82 @@
-# Welcome to your Expo app 👋
+# Studyopia
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+A dreamy pastel study companion: plan your tasks, focus with a Pomodoro timer, and track your progress. Built with React Native and Expo.
 
-## Get started
+No account, no backend. Everything is stored on your device.
 
-1. Install dependencies
+<!-- Add screenshots here, e.g.
+<p>
+  <img src="docs/home.png" width="200" />
+  <img src="docs/planner.png" width="200" />
+  <img src="docs/focus.png" width="200" />
+  <img src="docs/progress.png" width="200" />
+</p>
+-->
 
-   ```bash
-   npm install
-   ```
+## Features
 
-2. Start the app
+- **Onboarding**: enter your name once, then jump straight in
+- **Home**: daily goal progress, study streak, focus time today, and today's schedule
+- **Planner**: week strip, task list, check off tasks, add / edit / delete tasks with subject, date, time and notes
+- **Focus timer**: Pomodoro, short break and long break with a circular countdown and subject picker
+- **Session complete**: a popup after each finished focus session, with a quick jump to a break
+- **Progress**: weekly and monthly study-time bars, tasks completed, focus sessions, and time per subject
+- **Settings**: change your name, timer lengths and subjects, plus export / import backup
 
-   ```bash
-   npx expo start
-   ```
+## Tech stack
 
-In the output, you'll find options to open the app in a
+- [Expo](https://expo.dev) (SDK 58) with [Expo Router](https://docs.expo.dev/router/introduction/) (file-based routing)
+- React Native + TypeScript
+- `@react-native-async-storage/async-storage` for local data
+- `react-native-svg` for the timer ring
+- `@expo/vector-icons` for icons
+- `@expo-google-fonts/nunito` for typography
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
 
-You can start developing by editing the files inside the **src/app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+## Project structure
 
-## Get a fresh project
-
-When you're ready, run:
-
-```bash
-npm run reset-project
+```
+src/
+├── app/
+│   ├── _layout.tsx            Root stack (fonts, modals)
+│   ├── index.tsx              Gate: saved name? Home : Onboarding
+│   ├── onboarding.tsx
+│   ├── settings.tsx
+│   ├── add-task.tsx           Modal: add / edit / delete a task
+│   ├── session-complete.tsx   Modal: shown after a focus session
+│   └── (tabs)/
+│       ├── _layout.tsx        Floating tab bar with centre "+" button
+│       ├── home.tsx
+│       ├── planner.tsx
+│       ├── focus.tsx
+│       └── progress.tsx
+├── lib/
+│   ├── storage.ts             All data reads / writes (AsyncStorage)
+│   ├── dates.ts               Date helpers (local YYYY-MM-DD keys)
+│   └── stats.ts               Streak and minutes helpers
+└── theme.ts                   Colours, radii and fonts
 ```
 
-This command will move the starter code to the **example** directory and create a blank **src/app** directory where you can start developing.
+## How it works
 
-### Other setup steps
+- **Data**: tasks, subjects, sessions and settings live in AsyncStorage behind a single `storage` module (`src/lib/storage.ts`). Screens never touch AsyncStorage directly, so swapping in a backend later only means rewriting that one file.
+- **Timer**: the countdown compares timestamps instead of counting ticks, so it stays accurate if the app is backgrounded. Only completed focus sessions are logged.
+- **Streak**: consecutive days with at least one completed focus session.
+- **Theme**: every colour lives in `src/theme.ts` using role names (`primary`, `secondary`, `muted`, `highlight`). Change the hex values there to re-theme the whole app.
 
-- To set up ESLint for linting, run `npx expo lint`, or follow our guide on ["Using ESLint and Prettier"](https://docs.expo.dev/guides/using-eslint/)
-- If you'd like to set up unit testing, follow our guide on ["Unit Testing with Jest"](https://docs.expo.dev/develop/unit-testing/)
-- Learn more about the TypeScript setup in this template in our guide on ["Using TypeScript"](https://docs.expo.dev/guides/typescript/)
+## Backup
 
-## Learn more
+Data is stored only on your device. Use **Settings → Export data** to share a JSON backup, and **Import data** to restore it by pasting the text back in.
 
-To learn more about developing your project with Expo, look at the following resources:
+## Roadmap
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+- [ ] Notification when the timer ends
+- [ ] Native time picker for tasks
+- [ ] Achievements and badges
+- [ ] Dark mode / theme switcher
+- [ ] File-based backup (export to / import from a `.json` file)
+- [ ] Standalone Android build with EAS
 
-## Join the community
+## License
 
-Join our community of developers creating universal apps.
-
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+Choose a license, e.g. MIT, and add a `LICENSE` file.
