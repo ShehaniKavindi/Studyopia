@@ -6,6 +6,7 @@ import { colors, fonts, radius } from '../../theme';
 import { storage, Subject, Session, DEFAULT_SETTINGS } from '../../lib/storage';
 import { toKey } from '../../lib/dates';
 import { formatMinutes } from '../../lib/stats';
+import Screen from '../../components/Screen';
 
 type Mode = 'focus' | 'short' | 'long';
 const LABELS: Record<Mode, string> = { focus: 'Pomodoro', short: 'Short break', long: 'Long break' };
@@ -127,86 +128,88 @@ export default function Focus() {
   const fraction = total ? remaining / total : 0;
 
   return (
-    <ScrollView style={s.screen} contentContainerStyle={{ padding: 20, paddingBottom: 120, alignItems: 'center' }}>
-      <Text style={s.title}>Focus</Text>
+    <Screen>
+        <ScrollView style={s.screen} contentContainerStyle={{ padding: 20, paddingBottom: 120, alignItems: 'center' }}>
+        <Text style={s.title}>Focus</Text>
 
-      {/* mode tabs */}
-      <View style={s.tabs}>
-        {(Object.keys(LABELS) as Mode[]).map((m) => (
-          <Pressable key={m} onPress={() => switchMode(m)} style={[s.tab, mode === m && s.tabOn]}>
-            <Text style={[s.tabText, mode === m && { color: colors.text }]}>{LABELS[m]}</Text>
-          </Pressable>
-        ))}
-      </View>
-
-      {/* ring */}
-      <View style={{ width: SIZE, height: SIZE, marginVertical: 28 }}>
-        <Svg width={SIZE} height={SIZE}>
-          <Circle cx={SIZE / 2} cy={SIZE / 2} r={R} stroke={colors.muted} strokeWidth={STROKE} fill="none" />
-          <Circle
-            cx={SIZE / 2} cy={SIZE / 2} r={R}
-            stroke={colors.primary} strokeWidth={STROKE} fill="none" strokeLinecap="round"
-            strokeDasharray={`${CIRC} ${CIRC}`}
-            strokeDashoffset={CIRC * (1 - fraction)}
-            rotation={-90} origin={`${SIZE / 2}, ${SIZE / 2}`}
-          />
-        </Svg>
-        <View style={s.center}>
-          <Text style={s.time}>{fmt(remaining)}</Text>
-          <Text style={s.caption}>{mode === 'focus' ? 'Focus on your goal!' : 'Take it easy'}</Text>
+        {/* mode tabs */}
+        <View style={s.tabs}>
+            {(Object.keys(LABELS) as Mode[]).map((m) => (
+            <Pressable key={m} onPress={() => switchMode(m)} style={[s.tab, mode === m && s.tabOn]}>
+                <Text style={[s.tabText, mode === m && { color: colors.text }]}>{LABELS[m]}</Text>
+            </Pressable>
+            ))}
         </View>
-      </View>
 
-      {/* subject picker (focus only) */}
-      {mode === 'focus' && (
-        <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            style={{ alignSelf: 'stretch', marginBottom: 22, flexGrow: 0 }}
-            contentContainerStyle={{ gap: 8, paddingHorizontal: 2 }}
-        >
-            {subjects.map((sub) => {
-            const on = sub.id === subjectId;
-            return (
-                <Pressable
-                key={sub.id}
-                disabled={running}
-                onPress={() => setSubjectId(on ? undefined : sub.id)}
-                style={[s.chip, { backgroundColor: on ? sub.color : colors.surface, borderColor: on ? sub.color : colors.muted }]}
-                >
-                <Text style={s.chipText}>{sub.name}</Text>
-                </Pressable>
-            );
-            })}
+        {/* ring */}
+        <View style={{ width: SIZE, height: SIZE, marginVertical: 28 }}>
+            <Svg width={SIZE} height={SIZE}>
+            <Circle cx={SIZE / 2} cy={SIZE / 2} r={R} stroke={colors.muted} strokeWidth={STROKE} fill="none" />
+            <Circle
+                cx={SIZE / 2} cy={SIZE / 2} r={R}
+                stroke={colors.primary} strokeWidth={STROKE} fill="none" strokeLinecap="round"
+                strokeDasharray={`${CIRC} ${CIRC}`}
+                strokeDashoffset={CIRC * (1 - fraction)}
+                rotation={-90} origin={`${SIZE / 2}, ${SIZE / 2}`}
+            />
+            </Svg>
+            <View style={s.center}>
+            <Text style={s.time}>{fmt(remaining)}</Text>
+            <Text style={s.caption}>{mode === 'focus' ? 'Focus on your goal!' : 'Take it easy'}</Text>
+            </View>
+        </View>
+
+        {/* subject picker (focus only) */}
+        {mode === 'focus' && (
+            <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                style={{ alignSelf: 'stretch', marginBottom: 22, flexGrow: 0 }}
+                contentContainerStyle={{ gap: 8, paddingHorizontal: 2 }}
+            >
+                {subjects.map((sub) => {
+                const on = sub.id === subjectId;
+                return (
+                    <Pressable
+                    key={sub.id}
+                    disabled={running}
+                    onPress={() => setSubjectId(on ? undefined : sub.id)}
+                    style={[s.chip, { backgroundColor: on ? sub.color : colors.surface, borderColor: on ? sub.color : colors.muted }]}
+                    >
+                    <Text style={s.chipText}>{sub.name}</Text>
+                    </Pressable>
+                );
+                })}
+            </ScrollView>
+            )}
+
+        {/* controls */}
+        <Pressable onPress={running ? pause : start} style={s.main}>
+            <Text style={s.mainText}>{running ? 'Pause' : remaining < total ? 'Resume' : 'Start'}</Text>
+        </Pressable>
+        <Pressable onPress={reset} hitSlop={10} style={{ padding: 12 }}>
+            <Text style={s.reset}>Reset</Text>
+        </Pressable>
+
+        {/* today */}
+        <View style={s.row}>
+            <View style={[s.stat, { backgroundColor: colors.muted }]}>
+            <Text style={s.statLabel}>Sessions today</Text>
+            <Text style={s.statNum}>{todays.length}</Text>
+            </View>
+            <View style={[s.stat, { backgroundColor: colors.highlight }]}>
+            <Text style={s.statLabel}>Focused today</Text>
+            <Text style={s.statNum}>{formatMinutes(todayMinutes)}</Text>
+            </View>
+        </View>
         </ScrollView>
-        )}
-
-      {/* controls */}
-      <Pressable onPress={running ? pause : start} style={s.main}>
-        <Text style={s.mainText}>{running ? 'Pause' : remaining < total ? 'Resume' : 'Start'}</Text>
-      </Pressable>
-      <Pressable onPress={reset} hitSlop={10} style={{ padding: 12 }}>
-        <Text style={s.reset}>Reset</Text>
-      </Pressable>
-
-      {/* today */}
-      <View style={s.row}>
-        <View style={[s.stat, { backgroundColor: colors.muted }]}>
-          <Text style={s.statLabel}>Sessions today</Text>
-          <Text style={s.statNum}>{todays.length}</Text>
-        </View>
-        <View style={[s.stat, { backgroundColor: colors.highlight }]}>
-          <Text style={s.statLabel}>Focused today</Text>
-          <Text style={s.statNum}>{formatMinutes(todayMinutes)}</Text>
-        </View>
-      </View>
-    </ScrollView>
+    </Screen>
   );
 }
 
 const s = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
-  title: { fontFamily: fonts.heavy, fontSize: 26, color: colors.text, marginTop: 28, alignSelf: 'flex-start' },
+  title: { fontFamily: fonts.heavy, fontSize: 26, color: colors.text, marginTop: 12, alignSelf: 'flex-start' },
   tabs: {
     flexDirection: 'row', backgroundColor: colors.muted, borderRadius: radius.pill, padding: 4,
     marginTop: 16, alignSelf: 'stretch',

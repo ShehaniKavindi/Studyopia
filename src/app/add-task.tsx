@@ -4,13 +4,11 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { colors, fonts, radius } from '../theme';
 import { storage, Subject } from '../lib/storage';
 import { toKey, addDays, fromKey, DAY_NAMES } from '../lib/dates';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Screen from '../components/Screen';
 
 export default function AddTask() {
   const { id, date } = useLocalSearchParams<{ id?: string; date?: string }>();
   const editing = !!id;
-
-  const insets = useSafeAreaInsets();
 
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [title, setTitle] = useState('');
@@ -56,14 +54,19 @@ export default function AddTask() {
   };
 
   return (
-    <ScrollView style={s.screen} contentContainerStyle={{ padding: 20, paddingTop: insets.top + 16, paddingBottom: insets.bottom + 40 }}
-      keyboardShouldPersistTaps="handled">
-      <View style={s.top}>
-        <Text style={s.heading}>{editing ? 'Edit task' : 'New task'}</Text>
-        <Pressable onPress={() => router.back()} hitSlop={10}>
-          <Text style={s.close}>Close</Text>
-        </Pressable>
-      </View>
+    <Screen>
+    <View style={[s.top, { paddingHorizontal: 20, paddingTop: 12 }]}>
+      <Text style={s.heading}>{editing ? 'Edit task' : 'New task'}</Text>
+      <Pressable onPress={() => router.back()} hitSlop={10}>
+        <Text style={s.close}>Close</Text>
+      </Pressable>
+    </View>
+
+    <ScrollView
+      style={{ flex: 1 }}
+      contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 40 }}
+      keyboardShouldPersistTaps="handled"
+    >
 
       <Text style={s.label}>Title</Text>
       <TextInput value={title} onChangeText={(v) => { setTitle(v); setError(''); }}
@@ -116,6 +119,7 @@ export default function AddTask() {
         </Pressable>
       )}
     </ScrollView>
+  </Screen>
   );
 }
 

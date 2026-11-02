@@ -7,6 +7,7 @@ import { toKey } from '../../lib/dates';
 import Avatar from '../../components/Avatar';
 import { minutesOn, streak, formatMinutes } from '../../lib/stats';
 import SubjectIcon from '../../components/SubjectIcon';
+import Screen from '../../components/Screen';
 
 export default function Home() {
   const [name, setName] = useState('');
@@ -35,6 +36,7 @@ export default function Home() {
   const pct = today.length ? done / today.length : 0;
 
   return (
+    <Screen>
     <ScrollView style={s.screen} contentContainerStyle={{ padding: 20, paddingBottom: 120 }}>
       {/* header */}
       <View style={s.header}>
@@ -109,12 +111,13 @@ export default function Home() {
         );
       })}
     </ScrollView>
+    </Screen>
   );
 }
 
 const s = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 28 },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 12 },
   hi: { fontFamily: fonts.heavy, fontSize: 24, color: colors.text },
   sub: { fontFamily: fonts.regular, fontSize: 14, color: colors.textMuted },
   avatar: { width: 44, height: 44, borderRadius: 22, backgroundColor: colors.secondary, alignItems: 'center', justifyContent: 'center' },

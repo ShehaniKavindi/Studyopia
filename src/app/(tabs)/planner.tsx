@@ -6,6 +6,7 @@ import { colors, fonts, radius } from '../../theme';
 import { storage, Task, Subject } from '../../lib/storage';
 import { toKey, addDays, startOfWeek, DAY_NAMES } from '../../lib/dates';
 import SubjectIcon from '../../components/SubjectIcon';
+import Screen from '../../components/Screen';
 
 export default function Planner() {
   const [selected, setSelected] = useState(new Date());
@@ -35,7 +36,7 @@ export default function Planner() {
   const monthLabel = selected.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
 
   return (
-    <View style={s.screen}>
+    <Screen>  
       <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 120 }}>
         {/* header */}
         <View style={s.header}>
@@ -102,13 +103,13 @@ export default function Planner() {
           );
         })}
       </ScrollView>
-    </View>
+    </Screen>  
   );
 }
 
 const s = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 28 },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 12 },
   title: { fontFamily: fonts.heavy, fontSize: 26, color: colors.text },
   weekNav: { flexDirection: 'row', gap: 14 },
   month: { fontFamily: fonts.bold, fontSize: 14, color: colors.textMuted, marginTop: 2 },

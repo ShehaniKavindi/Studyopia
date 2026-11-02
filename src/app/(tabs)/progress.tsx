@@ -6,6 +6,7 @@ import { colors, fonts, radius } from '../../theme';
 import { storage, Task, Subject, Session } from '../../lib/storage';
 import { toKey, addDays, startOfWeek, DAY_NAMES } from '../../lib/dates';
 import { formatMinutes } from '../../lib/stats';
+import Screen from '../../components/Screen';
 
 type Range = 'week' | 'month';
 type Bar = { label: string; minutes: number };
@@ -90,92 +91,94 @@ export default function Progress() {
     );
 
   return (
-    <ScrollView style={s.screen} contentContainerStyle={{ padding: 20, paddingBottom: 120 }}>
-      <Text style={s.title}>Progress</Text>
+    <Screen>
+        <ScrollView style={s.screen} contentContainerStyle={{ padding: 20, paddingBottom: 120 }}>
+        <Text style={s.title}>Progress</Text>
 
-      {/* week / month toggle */}
-      <View style={s.toggle}>
-        {(['week', 'month'] as Range[]).map((r) => (
-          <Pressable key={r} onPress={() => { setRange(r); setAnchor(new Date()); }}
-            style={[s.toggleBtn, range === r && s.toggleOn]}>
-            <Text style={[s.toggleText, range === r && { color: colors.text }]}>
-              {r === 'week' ? 'This week' : 'This month'}
-            </Text>
-          </Pressable>
-        ))}
-      </View>
+        {/* week / month toggle */}
+        <View style={s.toggle}>
+            {(['week', 'month'] as Range[]).map((r) => (
+            <Pressable key={r} onPress={() => { setRange(r); setAnchor(new Date()); }}
+                style={[s.toggleBtn, range === r && s.toggleOn]}>
+                <Text style={[s.toggleText, range === r && { color: colors.text }]}>
+                {r === 'week' ? 'This week' : 'This month'}
+                </Text>
+            </Pressable>
+            ))}
+        </View>
 
-      {/* range navigator */}
-      <View style={s.nav}>
-        <Pressable onPress={() => step(-1)} hitSlop={10}>
-          <Ionicons name="chevron-back" size={22} color={colors.text} />
-        </Pressable>
-        <Text style={s.navTitle}>{title}</Text>
-        <Pressable onPress={() => step(1)} hitSlop={10}>
-          <Ionicons name="chevron-forward" size={22} color={colors.text} />
-        </Pressable>
-      </View>
+        {/* range navigator */}
+        <View style={s.nav}>
+            <Pressable onPress={() => step(-1)} hitSlop={10}>
+            <Ionicons name="chevron-back" size={22} color={colors.text} />
+            </Pressable>
+            <Text style={s.navTitle}>{title}</Text>
+            <Pressable onPress={() => step(1)} hitSlop={10}>
+            <Ionicons name="chevron-forward" size={22} color={colors.text} />
+            </Pressable>
+        </View>
 
-      {/* chart card */}
-      <View style={s.card}>
-        <Text style={s.cardLabel}>Study time</Text>
-        <Text style={s.big}>{formatMinutes(totalMinutes)}</Text>
+        {/* chart card */}
+        <View style={s.card}>
+            <Text style={s.cardLabel}>Study time</Text>
+            <Text style={s.big}>{formatMinutes(totalMinutes)}</Text>
 
-        <View style={s.chart}>
-          {bars.map((b, i) => {
-            const h = b.minutes ? Math.max(8, (b.minutes / max) * BAR_AREA) : 6;
+            <View style={s.chart}>
+            {bars.map((b, i) => {
+                const h = b.minutes ? Math.max(8, (b.minutes / max) * BAR_AREA) : 6;
+                return (
+                <View key={i} style={s.barCol}>
+                    <Text style={s.barValue}>{b.minutes ? formatMinutes(b.minutes) : ''}</Text>
+                    <View style={[s.bar, { height: h, backgroundColor: b.minutes ? colors.primary : colors.muted }]} />
+                    <Text style={s.barLabel}>{b.label}</Text>
+                </View>
+                );
+            })}
+            </View>
+        </View>
+
+        {/* stats */}
+        <View style={s.row}>
+            <View style={[s.stat, { backgroundColor: colors.highlight }]}>
+            <Text style={s.statLabel}>Tasks completed</Text>
+            <Text style={s.statNum}>{tasksDone}<Text style={s.statOf}> / {tasksAll}</Text></Text>
+            </View>
+            <View style={[s.stat, { backgroundColor: colors.muted }]}>
+            <Text style={s.statLabel}>Focus sessions</Text>
+            <Text style={s.statNum}>{inRange.length}</Text>
+            </View>
+        </View>
+
+        {/* subjects */}
+        <Text style={s.section}>Subjects</Text>
+        {subjectRows.length === 0 && (
+            <View style={s.empty}>
+            <Ionicons name="leaf-outline" size={30} color={colors.textMuted} />
+            <Text style={s.emptyText}>No focus sessions in this range yet.</Text>
+            </View>
+        )}
+        {subjectRows.map((r) => {
+            const pct = totalMinutes ? r.minutes / totalMinutes : 0;
             return (
-              <View key={i} style={s.barCol}>
-                <Text style={s.barValue}>{b.minutes ? formatMinutes(b.minutes) : ''}</Text>
-                <View style={[s.bar, { height: h, backgroundColor: b.minutes ? colors.primary : colors.muted }]} />
-                <Text style={s.barLabel}>{b.label}</Text>
-              </View>
+            <View key={r.id} style={s.subject}>
+                <View style={s.subjectTop}>
+                <Text style={s.subjectName}>{r.name}</Text>
+                <Text style={s.subjectMeta}>{formatMinutes(r.minutes)} · {Math.round(pct * 100)}%</Text>
+                </View>
+                <View style={s.track}>
+                <View style={[s.fill, { width: `${pct * 100}%` as `${number}%`, backgroundColor: r.color }]} />
+                </View>
+            </View>
             );
-          })}
-        </View>
-      </View>
-
-      {/* stats */}
-      <View style={s.row}>
-        <View style={[s.stat, { backgroundColor: colors.highlight }]}>
-          <Text style={s.statLabel}>Tasks completed</Text>
-          <Text style={s.statNum}>{tasksDone}<Text style={s.statOf}> / {tasksAll}</Text></Text>
-        </View>
-        <View style={[s.stat, { backgroundColor: colors.muted }]}>
-          <Text style={s.statLabel}>Focus sessions</Text>
-          <Text style={s.statNum}>{inRange.length}</Text>
-        </View>
-      </View>
-
-      {/* subjects */}
-      <Text style={s.section}>Subjects</Text>
-      {subjectRows.length === 0 && (
-        <View style={s.empty}>
-          <Ionicons name="leaf-outline" size={30} color={colors.textMuted} />
-          <Text style={s.emptyText}>No focus sessions in this range yet.</Text>
-        </View>
-      )}
-      {subjectRows.map((r) => {
-        const pct = totalMinutes ? r.minutes / totalMinutes : 0;
-        return (
-          <View key={r.id} style={s.subject}>
-            <View style={s.subjectTop}>
-              <Text style={s.subjectName}>{r.name}</Text>
-              <Text style={s.subjectMeta}>{formatMinutes(r.minutes)} · {Math.round(pct * 100)}%</Text>
-            </View>
-            <View style={s.track}>
-              <View style={[s.fill, { width: `${pct * 100}%` as `${number}%`, backgroundColor: r.color }]} />
-            </View>
-          </View>
-        );
-      })}
-    </ScrollView>
+        })}
+        </ScrollView>
+    </Screen>
   );
 }
 
 const s = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
-  title: { fontFamily: fonts.heavy, fontSize: 26, color: colors.text, marginTop: 28 },
+  title: { fontFamily: fonts.heavy, fontSize: 26, color: colors.text, marginTop: 12 },
 
   toggle: { flexDirection: 'row', backgroundColor: colors.muted, borderRadius: radius.pill, padding: 4, marginTop: 16 },
   toggleBtn: { flex: 1, paddingVertical: 10, alignItems: 'center', borderRadius: radius.pill },
