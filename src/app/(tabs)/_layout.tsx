@@ -12,6 +12,8 @@ export default function TabsLayout() {
         tabBarInactiveTintColor: colors.textMuted,
         tabBarLabelStyle: { fontFamily: fonts.bold, fontSize: 11 },
         tabBarStyle: styles.bar,
+        tabBarActiveBackgroundColor: colors.muted,
+        tabBarItemStyle: { borderRadius: 22, marginHorizontal: 2, marginVertical: 8 },
       }}
     >
       <Tabs.Screen name="home" options={{ title: 'Home',

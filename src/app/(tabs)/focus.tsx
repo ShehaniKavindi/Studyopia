@@ -2,11 +2,14 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { View, Text, Pressable, ScrollView, StyleSheet, Vibration } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
-import { colors, fonts, radius } from '../../theme';
+import { colors, fonts, radius, shadow } from '../../theme';
 import { storage, Subject, Session, DEFAULT_SETTINGS } from '../../lib/storage';
 import { toKey } from '../../lib/dates';
 import { formatMinutes } from '../../lib/stats';
 import Screen from '../../components/Screen';
+import Card from '../../components/Card';
+import Tap from '../../components/Tap';
+import SubjectIcon from '../../components/SubjectIcon';
 
 type Mode = 'focus' | 'short' | 'long';
 const LABELS: Record<Mode, string> = { focus: 'Pomodoro', short: 'Short break', long: 'Long break' };
@@ -126,84 +129,93 @@ export default function Focus() {
   const todays = sessions.filter((x) => toKey(new Date(x.startedAt)) === todayKey);
   const todayMinutes = todays.reduce((sum, x) => sum + x.minutes, 0);
   const fraction = total ? remaining / total : 0;
+  const caption = running
+    ? mode === 'focus' ? 'Stay with it' : 'Rest well'
+    : mode === 'focus' ? 'Ready when you are' : 'Take it easy';
 
   return (
     <Screen>
-        <ScrollView style={s.screen} contentContainerStyle={{ padding: 20, paddingBottom: 120, alignItems: 'center' }}>
+      <ScrollView
+        style={s.screen}
+        contentContainerStyle={{ padding: 20, paddingBottom: 130, alignItems: 'center' }}
+      >
         <Text style={s.title}>Focus</Text>
 
         {/* mode tabs */}
         <View style={s.tabs}>
-            {(Object.keys(LABELS) as Mode[]).map((m) => (
+          {(Object.keys(LABELS) as Mode[]).map((m) => (
             <Pressable key={m} onPress={() => switchMode(m)} style={[s.tab, mode === m && s.tabOn]}>
-                <Text style={[s.tabText, mode === m && { color: colors.text }]}>{LABELS[m]}</Text>
+              <Text style={[s.tabText, mode === m && { color: colors.text }]}>{LABELS[m]}</Text>
             </Pressable>
-            ))}
+          ))}
         </View>
 
         {/* ring */}
-        <View style={{ width: SIZE, height: SIZE, marginVertical: 28 }}>
-            <Svg width={SIZE} height={SIZE}>
-                <Circle cx={SIZE / 2} cy={SIZE / 2} r={R - STROKE} fill={colors.highlight} opacity={0.45} />
+        <View style={s.ringWrap}>
+          <Svg width={SIZE} height={SIZE}>
+            <Circle cx={SIZE / 2} cy={SIZE / 2} r={R - STROKE} fill={colors.highlight} opacity={0.45} />
             <Circle cx={SIZE / 2} cy={SIZE / 2} r={R} stroke={colors.muted} strokeWidth={STROKE} fill="none" />
             <Circle
-                cx={SIZE / 2} cy={SIZE / 2} r={R}
-                stroke={colors.primary} strokeWidth={STROKE} fill="none" strokeLinecap="round"
-                strokeDasharray={`${CIRC} ${CIRC}`}
-                strokeDashoffset={CIRC * (1 - fraction)}
-                rotation={-90} origin={`${SIZE / 2}, ${SIZE / 2}`}
+              cx={SIZE / 2} cy={SIZE / 2} r={R}
+              stroke={colors.primary} strokeWidth={STROKE} fill="none" strokeLinecap="round"
+              strokeDasharray={`${CIRC} ${CIRC}`}
+              strokeDashoffset={CIRC * (1 - fraction)}
+              rotation={-90} origin={`${SIZE / 2}, ${SIZE / 2}`}
             />
-            </Svg>
-            <View style={s.center}>
+          </Svg>
+          <View style={s.center}>
             <Text style={s.time}>{fmt(remaining)}</Text>
-            <Text style={s.caption}>{mode === 'focus' ? 'Focus on your goal!' : 'Take it easy'}</Text>
-            </View>
+            <Text style={s.caption}>{caption}</Text>
+          </View>
         </View>
 
         {/* subject picker (focus only) */}
         {mode === 'focus' && (
-            <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                style={{ alignSelf: 'stretch', marginBottom: 22, flexGrow: 0 }}
-                contentContainerStyle={{ gap: 8, paddingHorizontal: 2 }}
-            >
-                {subjects.map((sub) => {
-                const on = sub.id === subjectId;
-                return (
-                    <Pressable
-                    key={sub.id}
-                    disabled={running}
-                    onPress={() => setSubjectId(on ? undefined : sub.id)}
-                    style={[s.chip, { backgroundColor: on ? sub.color : colors.surface, borderColor: on ? sub.color : colors.muted }]}
-                    >
-                    <Text style={s.chipText}>{sub.name}</Text>
-                    </Pressable>
-                );
-                })}
-            </ScrollView>
-            )}
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={{ alignSelf: 'stretch', marginBottom: 22, flexGrow: 0 }}
+            contentContainerStyle={{ gap: 10, paddingHorizontal: 4, paddingVertical: 8 }}
+          >
+            {subjects.map((sub) => {
+              const on = sub.id === subjectId;
+              return (
+                <Pressable
+                  key={sub.id}
+                  disabled={running}
+                  onPress={() => setSubjectId(on ? undefined : sub.id)}
+                  style={[s.chip, on && { backgroundColor: sub.color }, running && !on && { opacity: 0.5 }]}
+                >
+                  <SubjectIcon subject={sub} size={24} />
+                  <Text style={s.chipText}>{sub.name}</Text>
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+        )}
 
         {/* controls */}
-        <Pressable onPress={running ? pause : start} style={s.main}>
+        <View style={{ alignSelf: 'stretch' }}>
+          <Tap onPress={running ? pause : start} style={s.main}>
             <Text style={s.mainText}>{running ? 'Pause' : remaining < total ? 'Resume' : 'Start'}</Text>
-        </Pressable>
-        <Pressable onPress={reset} hitSlop={10} style={{ padding: 12 }}>
-            <Text style={s.reset}>Reset</Text>
+          </Tap>
+        </View>
+        <Pressable onPress={reset} hitSlop={10} style={{ padding: 14 }}>
+          <Text style={s.reset}>Reset</Text>
         </Pressable>
 
         {/* today */}
         <View style={s.row}>
-            <View style={[s.stat, { backgroundColor: colors.muted }]}>
+          <Card tint={colors.muted} style={s.stat}>
             <Text style={s.statLabel}>Sessions today</Text>
             <Text style={s.statNum}>{todays.length}</Text>
-            </View>
-            <View style={[s.stat, { backgroundColor: colors.highlight }]}>
+          </Card>
+          <Card tint={colors.highlight} style={s.stat}>
             <Text style={s.statLabel}>Focused today</Text>
             <Text style={s.statNum}>{formatMinutes(todayMinutes)}</Text>
-            </View>
+          </Card>
         </View>
-        </ScrollView>
+      </ScrollView>
     </Screen>
   );
 }
@@ -216,27 +228,33 @@ const s = StyleSheet.create({
     marginTop: 16, alignSelf: 'stretch',
   },
   tab: { flex: 1, paddingVertical: 10, alignItems: 'center', borderRadius: radius.pill },
-  tabOn: { backgroundColor: colors.surface },
+  tabOn: { backgroundColor: colors.surface, ...shadow.soft },
   tabText: { fontFamily: fonts.heavy, fontSize: 13, color: colors.textMuted },
-  center: {
-    position: 'absolute',
-    top: 0, left: 0, right: 0, bottom: 0,
-    alignItems: 'center',
-    justifyContent: 'center',
-    },
+
+  ringWrap: {
+    width: SIZE, height: SIZE, marginVertical: 28, borderRadius: SIZE / 2,
+    backgroundColor: colors.bg, ...shadow.soft,
+  },
+  center: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' },
   time: { fontFamily: fonts.heavy, fontSize: 54, color: colors.text },
   caption: { fontFamily: fonts.bold, fontSize: 14, color: colors.textMuted, marginTop: 2 },
-  wrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, justifyContent: 'center', marginBottom: 22 },
-  chip: { paddingHorizontal: 14, paddingVertical: 9, borderRadius: radius.pill, borderWidth: 1.5 },
+
+  chip: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    paddingLeft: 6, paddingRight: 14, paddingVertical: 6, borderRadius: radius.pill,
+    backgroundColor: colors.surface, ...shadow.soft,
+  },
   chipText: { fontFamily: fonts.bold, fontSize: 13, color: colors.text },
+
   main: {
-    backgroundColor: colors.primary, borderRadius: radius.pill, paddingVertical: 16,
-    alignSelf: 'stretch', alignItems: 'center',
+    backgroundColor: colors.primary, borderRadius: radius.pill, paddingVertical: 17,
+    alignItems: 'center', ...shadow.soft,
   },
   mainText: { fontFamily: fonts.heavy, fontSize: 17, color: colors.text },
   reset: { fontFamily: fonts.bold, fontSize: 14, color: colors.textMuted },
-  row: { flexDirection: 'row', gap: 12, alignSelf: 'stretch', marginTop: 12 },
-  stat: { flex: 1, borderRadius: 20, padding: 14 },
+
+  row: { flexDirection: 'row', gap: 12, alignSelf: 'stretch', marginTop: 8 },
+  stat: { flex: 1, padding: 14, borderRadius: 20 },
   statLabel: { fontFamily: fonts.heavy, fontSize: 12, color: colors.textMuted },
   statNum: { fontFamily: fonts.heavy, fontSize: 22, color: colors.text, marginTop: 2 },
 });

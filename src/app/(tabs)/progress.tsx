@@ -2,14 +2,17 @@ import { useCallback, useState } from 'react';
 import { View, Text, Pressable, ScrollView, StyleSheet } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, fonts, radius } from '../../theme';
+import { colors, fonts, radius, shadow } from '../../theme';
 import { storage, Task, Subject, Session } from '../../lib/storage';
 import { toKey, addDays, startOfWeek, DAY_NAMES } from '../../lib/dates';
 import { formatMinutes } from '../../lib/stats';
 import Screen from '../../components/Screen';
+import Card from '../../components/Card';
+import ProgressBar from '../../components/Bar';
+import SubjectIcon from '../../components/SubjectIcon';
 
 type Range = 'week' | 'month';
-type Bar = { label: string; minutes: number };
+type BarData = { label: string; minutes: number; isToday: boolean };
 
 const BAR_AREA = 120;
 
@@ -30,15 +33,16 @@ export default function Progress() {
     }, [])
   );
 
+  const todayKey = toKey(new Date());
+
   // ---- build the days in the selected range ----
   let days: Date[];
   let title: string;
   if (range === 'week') {
     const start = startOfWeek(anchor);
     days = Array.from({ length: 7 }, (_, i) => addDays(start, i));
-    const end = days[6];
     const f = (d: Date) => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-    title = `${f(days[0])} - ${f(end)}`;
+    title = `${f(days[0])} - ${f(days[6])}`;
   } else {
     const y = anchor.getFullYear();
     const m = anchor.getMonth();
@@ -53,15 +57,23 @@ export default function Progress() {
     inRange.filter((x) => toKey(new Date(x.startedAt)) === k).reduce((a, x) => a + x.minutes, 0);
 
   // ---- bars: 7 days for a week, weekly buckets for a month ----
-  let bars: Bar[];
+  let bars: BarData[];
   if (range === 'week') {
-    bars = days.map((d, i) => ({ label: DAY_NAMES[i][0], minutes: minutesFor(toKey(d)) }));
+    bars = days.map((d, i) => ({
+      label: DAY_NAMES[i][0],
+      minutes: minutesFor(toKey(d)),
+      isToday: toKey(d) === todayKey,
+    }));
   } else {
     const weeks = Math.ceil(days.length / 7);
-    bars = Array.from({ length: weeks }, (_, w) => ({
-      label: `W${w + 1}`,
-      minutes: days.slice(w * 7, w * 7 + 7).reduce((a, d) => a + minutesFor(toKey(d)), 0),
-    }));
+    bars = Array.from({ length: weeks }, (_, w) => {
+      const slice = days.slice(w * 7, w * 7 + 7);
+      return {
+        label: `W${w + 1}`,
+        minutes: slice.reduce((a, d) => a + minutesFor(toKey(d)), 0),
+        isToday: slice.some((d) => toKey(d) === todayKey),
+      };
+    });
   }
   const max = Math.max(...bars.map((b) => b.minutes), 1);
 
@@ -79,7 +91,7 @@ export default function Progress() {
   const subjectRows = [...bySubject.entries()]
     .map(([id, minutes]) => {
       const sub = subjects.find((x) => x.id === id);
-      return { id, minutes, name: sub?.name ?? 'No subject', color: sub?.color ?? colors.muted };
+      return { id, minutes, sub, name: sub?.name ?? 'No subject', color: sub?.color ?? colors.primary };
     })
     .sort((a, b) => b.minutes - a.minutes);
 
@@ -92,103 +104,120 @@ export default function Progress() {
 
   return (
     <Screen>
-        <ScrollView style={s.screen} contentContainerStyle={{ padding: 20, paddingBottom: 120 }}>
+      <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 130 }}>
         <Text style={s.title}>Progress</Text>
 
         {/* week / month toggle */}
         <View style={s.toggle}>
-            {(['week', 'month'] as Range[]).map((r) => (
-            <Pressable key={r} onPress={() => { setRange(r); setAnchor(new Date()); }}
-                style={[s.toggleBtn, range === r && s.toggleOn]}>
-                <Text style={[s.toggleText, range === r && { color: colors.text }]}>
+          {(['week', 'month'] as Range[]).map((r) => (
+            <Pressable
+              key={r}
+              onPress={() => { setRange(r); setAnchor(new Date()); }}
+              style={[s.toggleBtn, range === r && s.toggleOn]}
+            >
+              <Text style={[s.toggleText, range === r && { color: colors.text }]}>
                 {r === 'week' ? 'This week' : 'This month'}
-                </Text>
+              </Text>
             </Pressable>
-            ))}
+          ))}
         </View>
 
         {/* range navigator */}
         <View style={s.nav}>
-            <Pressable onPress={() => step(-1)} hitSlop={10}>
-            <Ionicons name="chevron-back" size={22} color={colors.text} />
-            </Pressable>
-            <Text style={s.navTitle}>{title}</Text>
-            <Pressable onPress={() => step(1)} hitSlop={10}>
-            <Ionicons name="chevron-forward" size={22} color={colors.text} />
-            </Pressable>
+          <Pressable onPress={() => step(-1)} hitSlop={10} style={s.arrow}>
+            <Ionicons name="chevron-back" size={20} color={colors.text} />
+          </Pressable>
+          <Text style={s.navTitle}>{title}</Text>
+          <Pressable onPress={() => step(1)} hitSlop={10} style={s.arrow}>
+            <Ionicons name="chevron-forward" size={20} color={colors.text} />
+          </Pressable>
         </View>
 
         {/* chart card */}
-        <View style={s.card}>
-            <Text style={s.cardLabel}>Study time</Text>
-            <Text style={s.big}>{formatMinutes(totalMinutes)}</Text>
+        <Card style={{ padding: 18 }}>
+          <Text style={s.cardLabel}>Study time</Text>
+          <Text style={s.big}>{formatMinutes(totalMinutes)}</Text>
 
-            <View style={s.chart}>
+          <View style={s.chart}>
             {bars.map((b, i) => {
-                const h = b.minutes ? Math.max(8, (b.minutes / max) * BAR_AREA) : 6;
-                return (
+              const h = b.minutes ? Math.max(8, (b.minutes / max) * BAR_AREA) : 6;
+              return (
                 <View key={i} style={s.barCol}>
-                    <Text style={s.barValue}>{b.minutes ? formatMinutes(b.minutes) : ''}</Text>
-                    <View style={[s.bar, { height: h, backgroundColor: b.minutes ? colors.primary : colors.muted }]} />
-                    <Text style={s.barLabel}>{b.label}</Text>
+                  <Text style={s.barValue}>{b.minutes ? formatMinutes(b.minutes) : ''}</Text>
+                  <View
+                    style={[
+                      s.bar,
+                      { height: h, backgroundColor: b.minutes ? colors.primary : colors.muted },
+                      b.isToday && b.minutes > 0 && { backgroundColor: colors.secondary, borderWidth: 2, borderColor: colors.primary },
+                    ]}
+                  />
+                  <Text style={[s.barLabel, b.isToday && { color: colors.text }]}>{b.label}</Text>
                 </View>
-                );
+              );
             })}
-            </View>
-        </View>
+          </View>
+        </Card>
 
         {/* stats */}
         <View style={s.row}>
-            <View style={[s.stat, { backgroundColor: colors.highlight }]}>
+          <Card tint={colors.highlight} style={s.stat}>
             <Text style={s.statLabel}>Tasks completed</Text>
-            <Text style={s.statNum}>{tasksDone}<Text style={s.statOf}> / {tasksAll}</Text></Text>
-            </View>
-            <View style={[s.stat, { backgroundColor: colors.muted }]}>
+            <Text style={s.statNum}>
+              {tasksDone}<Text style={s.statOf}> / {tasksAll}</Text>
+            </Text>
+          </Card>
+          <Card tint={colors.muted} style={s.stat}>
             <Text style={s.statLabel}>Focus sessions</Text>
             <Text style={s.statNum}>{inRange.length}</Text>
-            </View>
+          </Card>
         </View>
 
         {/* subjects */}
         <Text style={s.section}>Subjects</Text>
         {subjectRows.length === 0 && (
-            <View style={s.empty}>
-            <Ionicons name="leaf-outline" size={30} color={colors.textMuted} />
-            <Text style={s.emptyText}>No focus sessions in this range yet.</Text>
+          <View style={s.empty}>
+            <View style={s.emptyIcon}>
+              <Ionicons name="leaf-outline" size={30} color={colors.text} />
             </View>
+            <Text style={s.emptyTitle}>No sessions yet</Text>
+            <Text style={s.emptyText}>Finish a focus session to see your time here.</Text>
+          </View>
         )}
         {subjectRows.map((r) => {
-            const pct = totalMinutes ? r.minutes / totalMinutes : 0;
-            return (
-            <View key={r.id} style={s.subject}>
-                <View style={s.subjectTop}>
-                <Text style={s.subjectName}>{r.name}</Text>
-                <Text style={s.subjectMeta}>{formatMinutes(r.minutes)} · {Math.round(pct * 100)}%</Text>
+          const pct = totalMinutes ? r.minutes / totalMinutes : 0;
+          return (
+            <Card key={r.id} style={s.subject}>
+              <View style={s.subjectTop}>
+                <SubjectIcon subject={r.sub} size={34} />
+                <View style={{ flex: 1 }}>
+                  <Text style={s.subjectName}>{r.name}</Text>
+                  <Text style={s.subjectMeta}>{formatMinutes(r.minutes)} · {Math.round(pct * 100)}%</Text>
                 </View>
-                <View style={s.track}>
-                <View style={[s.fill, { width: `${pct * 100}%` as `${number}%`, backgroundColor: r.color }]} />
-                </View>
-            </View>
-            );
+              </View>
+              <ProgressBar pct={pct} color={r.color} track={colors.muted} />
+            </Card>
+          );
         })}
-        </ScrollView>
+      </ScrollView>
     </Screen>
   );
 }
 
 const s = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.bg },
   title: { fontFamily: fonts.heavy, fontSize: 26, color: colors.text, marginTop: 12 },
 
   toggle: { flexDirection: 'row', backgroundColor: colors.muted, borderRadius: radius.pill, padding: 4, marginTop: 16 },
   toggleBtn: { flex: 1, paddingVertical: 10, alignItems: 'center', borderRadius: radius.pill },
-  toggleOn: { backgroundColor: colors.surface },
+  toggleOn: { backgroundColor: colors.surface, ...shadow.soft },
   toggleText: { fontFamily: fonts.heavy, fontSize: 13, color: colors.textMuted },
 
-  nav: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 16, marginBottom: 12 },
+  nav: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 16, marginBottom: 14 },
+  arrow: {
+    width: 36, height: 36, borderRadius: 18, backgroundColor: colors.surface,
+    alignItems: 'center', justifyContent: 'center', ...shadow.soft,
+  },
   navTitle: { fontFamily: fonts.heavy, fontSize: 15, color: colors.text },
 
-  card: { backgroundColor: colors.surface, borderRadius: radius.lg, borderWidth: 1.5, borderColor: colors.muted, padding: 18 },
   cardLabel: { fontFamily: fonts.heavy, fontSize: 12, color: colors.textMuted },
   big: { fontFamily: fonts.heavy, fontSize: 30, color: colors.text, marginTop: 2 },
   chart: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', gap: 6, marginTop: 18 },
@@ -198,18 +227,22 @@ const s = StyleSheet.create({
   barLabel: { fontFamily: fonts.heavy, fontSize: 11, color: colors.textMuted, marginTop: 6 },
 
   row: { flexDirection: 'row', gap: 12, marginTop: 14 },
-  stat: { flex: 1, borderRadius: 20, padding: 14 },
+  stat: { flex: 1, padding: 14, borderRadius: 20 },
   statLabel: { fontFamily: fonts.heavy, fontSize: 12, color: colors.textMuted },
   statNum: { fontFamily: fonts.heavy, fontSize: 24, color: colors.text, marginTop: 2 },
   statOf: { fontFamily: fonts.bold, fontSize: 14, color: colors.textMuted },
 
-  section: { fontFamily: fonts.heavy, fontSize: 18, color: colors.text, marginTop: 24, marginBottom: 10 },
-  empty: { alignItems: 'center', gap: 8, paddingVertical: 28 },
-  emptyText: { fontFamily: fonts.bold, color: colors.textMuted },
-  subject: { marginBottom: 14 },
-  subjectTop: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 },
+  section: { fontFamily: fonts.heavy, fontSize: 18, color: colors.text, marginTop: 26, marginBottom: 12 },
+  empty: { alignItems: 'center', paddingVertical: 30 },
+  emptyIcon: {
+    width: 68, height: 68, borderRadius: 34, backgroundColor: colors.muted,
+    alignItems: 'center', justifyContent: 'center', marginBottom: 12,
+  },
+  emptyTitle: { fontFamily: fonts.heavy, fontSize: 16, color: colors.text },
+  emptyText: { fontFamily: fonts.regular, fontSize: 13, color: colors.textMuted, marginTop: 2, textAlign: 'center' },
+
+  subject: { marginBottom: 12, padding: 14, gap: 12, borderRadius: radius.md },
+  subjectTop: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   subjectName: { fontFamily: fonts.heavy, fontSize: 14, color: colors.text },
-  subjectMeta: { fontFamily: fonts.bold, fontSize: 12, color: colors.textMuted },
-  track: { height: 10, borderRadius: 10, backgroundColor: colors.muted, overflow: 'hidden' },
-  fill: { height: 10, borderRadius: 10 },
+  subjectMeta: { fontFamily: fonts.bold, fontSize: 12, color: colors.textMuted, marginTop: 1 },
 });

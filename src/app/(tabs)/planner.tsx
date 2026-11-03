@@ -2,11 +2,12 @@ import { useCallback, useState } from 'react';
 import { View, Text, Pressable, ScrollView, StyleSheet } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, fonts, radius } from '../../theme';
+import { colors, fonts, radius, shadow } from '../../theme';
 import { storage, Task, Subject } from '../../lib/storage';
 import { toKey, addDays, startOfWeek, DAY_NAMES } from '../../lib/dates';
 import SubjectIcon from '../../components/SubjectIcon';
 import Screen from '../../components/Screen';
+import Tap from '../../components/Tap';
 
 export default function Planner() {
   const [selected, setSelected] = useState(new Date());
@@ -21,12 +22,16 @@ export default function Planner() {
   // reload every time the tab or the modal returns
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
+  const todayKey = toKey(new Date());
   const weekStart = startOfWeek(selected);
   const days = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
   const key = toKey(selected);
+
+  const daysWithTasks = new Set(tasks.map((t) => t.date));
   const dayTasks = tasks
     .filter((t) => t.date === key)
     .sort((a, b) => (a.time ?? '99:99').localeCompare(b.time ?? '99:99'));
+  const doneCount = dayTasks.filter((t) => t.done).length;
 
   const toggle = async (t: Task) => {
     await storage.updateTask(t.id, { done: !t.done });
@@ -36,30 +41,44 @@ export default function Planner() {
   const monthLabel = selected.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
 
   return (
-    <Screen>  
-      <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 120 }}>
+    <Screen>
+      <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 130 }}>
         {/* header */}
         <View style={s.header}>
-          <Text style={s.title}>Planner</Text>
+          <View>
+            <Text style={s.title}>Planner</Text>
+            <Text style={s.month}>{monthLabel}</Text>
+          </View>
           <View style={s.weekNav}>
-            <Pressable onPress={() => setSelected(addDays(selected, -7))} hitSlop={10}>
-              <Ionicons name="chevron-back" size={22} color={colors.text} />
+            {key !== todayKey && (
+              <Pressable onPress={() => setSelected(new Date())} style={s.todayBtn} hitSlop={6}>
+                <Text style={s.todayText}>Today</Text>
+              </Pressable>
+            )}
+            <Pressable onPress={() => setSelected(addDays(selected, -7))} hitSlop={10} style={s.arrow}>
+              <Ionicons name="chevron-back" size={20} color={colors.text} />
             </Pressable>
-            <Pressable onPress={() => setSelected(addDays(selected, 7))} hitSlop={10}>
-              <Ionicons name="chevron-forward" size={22} color={colors.text} />
+            <Pressable onPress={() => setSelected(addDays(selected, 7))} hitSlop={10} style={s.arrow}>
+              <Ionicons name="chevron-forward" size={20} color={colors.text} />
             </Pressable>
           </View>
         </View>
-        <Text style={s.month}>{monthLabel}</Text>
 
         {/* week strip */}
         <View style={s.strip}>
           {days.map((d, i) => {
-            const active = toKey(d) === key;
+            const k = toKey(d);
+            const active = k === key;
             return (
               <Pressable key={i} onPress={() => setSelected(d)} style={[s.day, active && s.dayActive]}>
-                <Text style={[s.dayName, active && { color: colors.text }]}>{DAY_NAMES[i]}</Text>
+                <Text style={s.dayName}>{DAY_NAMES[i]}</Text>
                 <Text style={s.dayNum}>{d.getDate()}</Text>
+                <View
+                  style={[
+                    s.dot,
+                    { backgroundColor: daysWithTasks.has(k) ? (active ? colors.text : colors.primary) : 'transparent' },
+                  ]}
+                />
               </Pressable>
             );
           })}
@@ -68,67 +87,87 @@ export default function Planner() {
         {/* tasks */}
         <View style={s.listHeader}>
           <Text style={s.section}>Tasks</Text>
-          <Text style={s.count}>
-            {dayTasks.filter((t) => t.done).length}/{dayTasks.length} done
-          </Text>
+          <Text style={s.count}>{doneCount}/{dayTasks.length} done</Text>
         </View>
 
         {dayTasks.length === 0 && (
           <View style={s.empty}>
-            <Ionicons name="leaf-outline" size={32} color={colors.textMuted} />
-            <Text style={s.emptyText}>No tasks yet. Tap + to add one.</Text>
+            <View style={s.emptyIcon}>
+              <Ionicons name="leaf-outline" size={30} color={colors.text} />
+            </View>
+            <Text style={s.emptyTitle}>Nothing planned</Text>
+            <Text style={s.emptyText}>Tap + to add a task for this day.</Text>
           </View>
         )}
 
         {dayTasks.map((t) => {
           const subj = subjects.find((x) => x.id === t.subjectId);
           return (
-            <Pressable
-              key={t.id}
-              style={s.card}
-              onPress={() => router.push({ pathname: '/add-task', params: { id: t.id } })}
-            >
-              <Pressable onPress={() => toggle(t)} hitSlop={8}
-                style={[s.check, t.done && { backgroundColor: colors.primary, borderColor: colors.primary }]}>
-                {t.done && <Ionicons name="checkmark" size={16} color={colors.text} />}
-              </Pressable>
-              <View style={{ flex: 1 }}>
-                <Text style={[s.taskTitle, t.done && s.done]}>{t.title}</Text>
-                <Text style={s.meta}>
-                  {[subj?.name, t.time].filter(Boolean).join(' · ') || 'No subject'}
-                </Text>
-              </View>
-              <SubjectIcon subject={subj} size={34} />
-            </Pressable>
+            <View key={t.id} style={{ marginBottom: 12 }}>
+              <Tap
+                onPress={() => router.push({ pathname: '/add-task', params: { id: t.id } })}
+                style={s.card}
+              >
+                <Pressable
+                  onPress={() => toggle(t)}
+                  hitSlop={8}
+                  style={[s.check, t.done && { backgroundColor: colors.primary, borderColor: colors.primary }]}
+                >
+                  {t.done && <Ionicons name="checkmark" size={16} color={colors.text} />}
+                </Pressable>
+                <View style={{ flex: 1 }}>
+                  <Text style={[s.taskTitle, t.done && s.done]}>{t.title}</Text>
+                  <Text style={s.meta}>
+                    {[subj?.name, t.time].filter(Boolean).join(' · ') || 'No subject'}
+                  </Text>
+                </View>
+                <SubjectIcon subject={subj} size={34} />
+              </Tap>
+            </View>
           );
         })}
       </ScrollView>
-    </Screen>  
+    </Screen>
   );
 }
 
 const s = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.bg },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 12 },
   title: { fontFamily: fonts.heavy, fontSize: 26, color: colors.text },
-  weekNav: { flexDirection: 'row', gap: 14 },
   month: { fontFamily: fonts.bold, fontSize: 14, color: colors.textMuted, marginTop: 2 },
-  strip: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 16, marginBottom: 22 },
+  weekNav: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  arrow: {
+    width: 36, height: 36, borderRadius: 18, backgroundColor: colors.surface,
+    alignItems: 'center', justifyContent: 'center', ...shadow.soft,
+  },
+  todayBtn: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: radius.pill, backgroundColor: colors.highlight },
+  todayText: { fontFamily: fonts.heavy, fontSize: 12, color: colors.text },
+
+  strip: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 18, marginBottom: 24 },
   day: {
     width: 44, paddingVertical: 10, alignItems: 'center', borderRadius: radius.md,
-    backgroundColor: colors.surface, borderWidth: 1.5, borderColor: colors.muted,
+    backgroundColor: colors.surface, ...shadow.soft,
   },
-  dayActive: { backgroundColor: colors.secondary, borderColor: colors.secondary },
+  dayActive: { backgroundColor: colors.secondary },
   dayName: { fontFamily: fonts.bold, fontSize: 11, color: colors.textMuted },
   dayNum: { fontFamily: fonts.heavy, fontSize: 17, color: colors.text, marginTop: 2 },
-  listHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 10 },
+  dot: { width: 5, height: 5, borderRadius: 3, marginTop: 5 },
+
+  listHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 12 },
   section: { fontFamily: fonts.heavy, fontSize: 18, color: colors.text },
   count: { fontFamily: fonts.bold, fontSize: 13, color: colors.textMuted },
-  empty: { alignItems: 'center', gap: 8, paddingVertical: 40 },
-  emptyText: { fontFamily: fonts.bold, color: colors.textMuted },
+
+  empty: { alignItems: 'center', paddingVertical: 36 },
+  emptyIcon: {
+    width: 68, height: 68, borderRadius: 34, backgroundColor: colors.muted,
+    alignItems: 'center', justifyContent: 'center', marginBottom: 12,
+  },
+  emptyTitle: { fontFamily: fonts.heavy, fontSize: 16, color: colors.text },
+  emptyText: { fontFamily: fonts.regular, fontSize: 13, color: colors.textMuted, marginTop: 2 },
+
   card: {
-    flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, marginBottom: 10,
-    backgroundColor: colors.surface, borderRadius: radius.md, borderWidth: 1.5, borderColor: colors.muted,
+    flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14,
+    backgroundColor: colors.surface, borderRadius: radius.md, ...shadow.soft,
   },
   check: {
     width: 26, height: 26, borderRadius: 13, borderWidth: 2, borderColor: colors.primary,
@@ -137,5 +176,4 @@ const s = StyleSheet.create({
   taskTitle: { fontFamily: fonts.heavy, fontSize: 15, color: colors.text },
   done: { textDecorationLine: 'line-through', color: colors.textMuted },
   meta: { fontFamily: fonts.regular, fontSize: 12, color: colors.textMuted, marginTop: 2 },
-  dot: { width: 14, height: 14, borderRadius: 7 },
 });
